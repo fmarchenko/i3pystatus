@@ -42,12 +42,15 @@ def get_sensors():
     for chip in sensors.get_detected_chips():
         for feature in chip.get_features():
             if feature.type == sensors.FEATURE_TEMP:
-                name = chip.get_label(feature)
-                max = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_MAX)
-                current = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_INPUT)
-                critical = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_CRIT)
-                if critical:
-                    found_sensors.append(Sensor(name=name, current=current, maximum=max, critical=critical))
+                try:
+                    name = chip.get_label(feature)
+                    max = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_MAX)
+                    current = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_INPUT)
+                    critical = get_subfeature_value(feature, sensors.SUBFEATURE_TEMP_CRIT)
+                    if critical:
+                        found_sensors.append(Sensor(name=name, current=current, maximum=max, critical=critical))
+                except sensors.SensorsException:
+                    continue
     return found_sensors
 
 
@@ -200,13 +203,17 @@ class Temperature(IntervalModule, ColorRangeModule):
         """
         data = dict()
         found_sensors = get_sensors()
+        if len(found_sensors) == 0:
+            raise Exception("No sensors detected! "
+                            "Ensure lm-sensors is installed and check the output of the `sensors` command.")
         for sensor in found_sensors:
             data[sensor.name] = self.format_sensor(sensor)
             data["{}_bar".format(sensor.name)] = self.format_sensor_bar(sensor)
         data['temp'] = max((s.current for s in found_sensors))
         return {
             'full_text': self.format.format(**data),
-            'urgent': self.get_urgent(found_sensors)
+            'urgent': self.get_urgent(found_sensors),
+            'color': self.color if not self.dynamic_color else None,
         }
 
     def get_urgent(self, sensors):
@@ -227,9 +234,7 @@ class Temperature(IntervalModule, ColorRangeModule):
             percentage = self.percentage(sensor.current, sensor.critical)
             if self.dynamic_color:
                 color = self.colors[int(percentage)]
-            else:
-                color = self.color
-            return self.format_pango(color, current_val)
+                return self.format_pango(color, current_val)
         return current_val
 
     def format_sensor_bar(self, sensor):
@@ -239,9 +244,7 @@ class Temperature(IntervalModule, ColorRangeModule):
         if self.pango_enabled:
             if self.dynamic_color:
                 color = self.colors[int(percentage)]
-            else:
-                color = self.color
-            return self.format_pango(color, bar)
+                return self.format_pango(color, bar)
         return bar
 
     def format_pango(self, color, value):

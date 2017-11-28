@@ -103,7 +103,7 @@ class NiceHashSpeed(IntervalModule):
             }
             return
 
-        algo = data.get('result', {}).get('current', ({},))[0]
+        algo = next(filter(lambda x: x.get('algo', None) == self.algo, data.get('result', {}).get('current', ({},))))
         speed = float(algo.get('data', ({},))[0].get('a', 0))
 
         fdict = {'addr': self.addr,
