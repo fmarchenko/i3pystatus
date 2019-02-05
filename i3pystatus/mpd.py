@@ -1,3 +1,4 @@
+from collections import defaultdict
 import socket
 from os.path import basename
 from math import floor
@@ -16,6 +17,7 @@ class MPD(IntervalModule):
     * `{album}` — (the album of the current song, can be an empty string \
 (e.g. for online streams))
     * `{artist}` — (can be empty, too)
+    * `{album_artist}` — (can be empty)
     * `{filename}` — (file name with out extension and path; empty unless \
 title is empty)
     * `{song_elapsed}` — (Position in the currently playing song, uses \
@@ -65,6 +67,7 @@ socket."),
         ("format", "formatp string"),
         ("status", "Dictionary mapping pause, play and stop to output"),
         ("color", "The color of the text"),
+        ("color_map", "The mapping from state to color of the text"),
         ("max_field_len", "Defines max length for in truncate_fields defined \
 fields, if truncated, ellipsis are appended as indicator. It's applied \
 *before* max_len. Value of 0 disables this."),
@@ -90,9 +93,10 @@ cleartext to the server.)"),
         "stop": "◾",
     }
     color = "#FFFFFF"
+    color_map = {}
     max_field_len = 25
     max_len = 100
-    truncate_fields = ("title", "album", "artist")
+    truncate_fields = ("title", "album", "artist", "album_artist")
     hide_inactive = False
     on_leftclick = "switch_playpause"
     on_rightclick = "next_song"
@@ -148,6 +152,7 @@ cleartext to the server.)"),
             "title": currentsong.get("Title", ""),
             "album": currentsong.get("Album", ""),
             "artist": currentsong.get("Artist", ""),
+            "album_artist": currentsong.get("AlbumArtist", ""),
             "song_length": TimeWrapper(currentsong.get("Time", 0)),
             "song_elapsed": TimeWrapper(float(status.get("elapsed", 0))),
             "bitrate": int(status.get("bitrate", 0)),
@@ -168,16 +173,17 @@ cleartext to the server.)"),
         full_text = formatp(self.format, **fdict).strip()
         full_text_len = len(full_text)
         if full_text_len > self.max_len and self.max_len > 0:
-            shrink = floor((self.max_len - full_text_len) /
-                           len(self.truncate_fields)) - 1
+            shrink = floor((self.max_len - full_text_len)
+                           / len(self.truncate_fields)) - 1
 
             for key in self.truncate_fields:
                 fdict[key] = fdict[key][:shrink] + "…"
 
             full_text = formatp(self.format, **fdict).strip()
+        color_map = defaultdict(lambda: self.color, self.color_map)
         self.output = {
             "full_text": full_text,
-            "color": self.color,
+            "color": color_map[playback_state],
         }
 
     def switch_playpause(self):

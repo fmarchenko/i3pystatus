@@ -31,10 +31,12 @@ class Xkblayout(IntervalModule):
     """
 
     interval = 1
+    color = "#FFFFFF"
     format = "\u2328 {symbol}"
     layouts = []
     uppercase = False
     settings = (
+        ("color", "RGB hexadecimal color code specifuer, defaults to #FFFFFF"),
         ("format", "Format string"),
         ("layouts", "List of layouts"),
         ("uppercase", "Flag for uppercase output"),
